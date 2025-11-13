@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Mini app TVmaze</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="apptv">
+      <h1>Recherche de séries TV</h1>
+
+      <form id="search-form" class="apptv__search-form">
+        <input
+          type="text"
+          id="search-input"
+          class="apptv__search-input"
+          placeholder="Tape le nom d'une série (ex : girls)"
+          required
+        />
+        <button type="submit" class="apptv__btn-submit">Rechercher</button>
+      </form>
+
+      <section id="results" class="apptv__results-grid">
+        <!-- Les résultats seront injectés ici en JS -->
+      </section>
+    </main>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
