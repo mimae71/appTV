@@ -1,13 +1,15 @@
-
 // --- Sélection des éléments du DOM ---
 const form = document.getElementById("search-form");
 const input = document.getElementById("search-input");
 const resultsSection = document.getElementById("results");
-
-// --- Région d'erreur pour les lecteurs d'écran (créée en JS) ---
+const paginationNav = document.getElementById("pagination");
 const errorLiveRegion = document.getElementById("error-live-region");
-// --- AbortController courant (pour la dernière requête) ---
+
+// --- État global pour la pagination ---
 let currentController = null;
+let currentResults = [];   // tous les résultats renvoyés par l'API
+let currentPage = 1;       // page en cours
+const ITEMS_PER_PAGE = 4; // nombre d'items par page
 
 // --- Fonction utilitaire : debounce générique ---
 function debounce(fn, delay = 400) {
@@ -30,33 +32,55 @@ function setLoading(isLoading) {
 
   if (isLoading) {
     resultsSection.innerHTML = "<p>Chargement…</p>";
+    clearPagination();
   }
 }
 
-// --- Affichage d'un message d'erreur + annonce pour lecteur d'écran ---
+// --- Affichage d'un message d'erreur + annonce lecteur d'écran ---
 function showError(message) {
   resultsSection.innerHTML = `<p>${message}</p>`;
+  clearPagination();
   errorLiveRegion.textContent = message;
 }
 
-// --- Fonction pour afficher les résultats dans la grille ---
-function renderResults(series) {
-  // on efface l'erreur précédente le cas échéant
-  errorLiveRegion.textContent = "";
-  resultsSection.innerHTML = "";
+// --- Nettoyage de la pagination ---
+function clearPagination() {
+  if (paginationNav) {
+    paginationNav.innerHTML = "";
+  }
+}
 
-  if (!series.length) {
-    const message = "Aucun résultat trouvé.";
-    resultsSection.textContent = message;
+// --- Affiche une page précise à partir de currentResults ---
+function renderPage(page) {
+  const total = currentResults.length;
+  if (!total) {
+    resultsSection.innerHTML = "<p>Aucun résultat trouvé.</p>";
+    clearPagination();
     return;
   }
 
-  // Affichage du nombre de résultats (annoncé automatiquement)
-  resultsSection.innerHTML = `<p class="results-info">${series.length} résultat(s).</p>`;
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
+  // on borne la page demandée
+  currentPage = Math.min(Math.max(1, page), totalPages);
 
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, total);
+  const pageItems = currentResults.slice(startIndex, endIndex);
+
+  // on vide d'abord la zone de résultats et l'erreur
+  errorLiveRegion.textContent = "";
+  resultsSection.innerHTML = "";
+
+  // message visible pour tout le monde (annonce aussi via aria-live)
+  const info = document.createElement("p");
+  info.className = "results-info";
+  info.textContent = `Résultats ${startIndex + 1}–${endIndex} sur ${total} (page ${currentPage}/${totalPages}).`;
+  resultsSection.appendChild(info);
+
+  // on construit la grille pour la page courante
   const fragment = document.createDocumentFragment();
 
-  series.forEach(({ show }) => {
+  pageItems.forEach(({ show }) => {
     const imageUrl = show.image
       ? show.image.medium
       : "https://placehold.co/210x295?text=No+Image";
@@ -76,39 +100,101 @@ function renderResults(series) {
 
     article.appendChild(img);
     article.appendChild(p);
-
     fragment.appendChild(article);
   });
 
   resultsSection.appendChild(fragment);
-}
-//   // petite info pour les lecteurs d'écran : nombre de résultats
-//   const info = document.createElement("p");
-//   info.textContent = `${series.length} série(s) trouvée(s).`;
-//   Object.assign(info.style, {
-//     position: "absolute",
-//     width: "1px",
-//     height: "1px",
-//     padding: "0",
-//     margin: "-1px",
-//     border: "0",
-//     overflow: "hidden",
-//     clip: "rect(0 0 0 0)",
-//     clipPath: "inset(50%)",
-//     whiteSpace: "nowrap",
-//   });
 
-//   resultsSection.prepend(info);
-// }
+  renderPagination(totalPages);
+}
+
+// --- Construit les boutons de pagination ---
+function renderPagination(totalPages) {
+  if (!paginationNav) return;
+
+  paginationNav.innerHTML = "";
+
+  if (totalPages <= 1) {
+    return; // pas de pagination si une seule page
+  }
+
+  const list = document.createElement("ul");
+  list.className = "pagination__list";
+
+  const createPageButton = (label, page, options = {}) => {
+    const { disabled = false, isCurrent = false } = options;
+
+    const li = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.className = "pagination__btn";
+
+    if (disabled) {
+      button.disabled = true;
+      button.classList.add("is-disabled");
+    }
+
+    if (isCurrent) {
+      button.classList.add("is-current");
+      button.setAttribute("aria-current", "page");
+    }
+
+    if (!disabled && !isCurrent) {
+      button.addEventListener("click", () => {
+        changePage(page);
+      });
+    }
+
+    li.appendChild(button);
+    list.appendChild(li);
+  };
+
+  const total = Math.ceil(currentResults.length / ITEMS_PER_PAGE);
+
+  // Bouton Précédent
+  createPageButton("Précédent", currentPage - 1, {
+    disabled: currentPage === 1,
+  });
+
+  // Boutons de pages
+  for (let page = 1; page <= total; page++) {
+    createPageButton(String(page), page, {
+      isCurrent: page === currentPage,
+    });
+  }
+
+  // Bouton Suivant
+  createPageButton("Suivant", currentPage + 1, {
+    disabled: currentPage === total,
+  });
+
+  paginationNav.appendChild(list);
+}
+
+// --- Change de page ---
+function changePage(page) {
+  renderPage(page);
+}
+
+// --- Fonction appelée après le fetch : enregistre les résultats et affiche la page 1 ---
+function renderResults(series) {
+  currentResults = series;
+  if (!series.length) {
+    resultsSection.innerHTML = "<p>Aucun résultat trouvé.</p>";
+    clearPagination();
+    return;
+  }
+  renderPage(1);
+}
 
 // --- Fonction pour effectuer la recherche avec AbortController ---
 async function searchSeries(query) {
-  // 1. Annuler la requête précédente si elle existe
+  // annuler la requête précédente si elle existe
   if (currentController) {
     currentController.abort();
   }
 
-  // 2. Créer un nouveau controller pour cette requête
   currentController = new AbortController();
   const { signal } = currentController;
 
@@ -125,7 +211,6 @@ async function searchSeries(query) {
     const data = await response.json();
     renderResults(data);
   } catch (error) {
-    // si la requête a été annulée, on ne fait rien
     if (error.name === "AbortError") {
       console.log("Requête annulée (nouvelle recherche déclenchée)");
       return;
@@ -162,15 +247,16 @@ input.addEventListener("input", () => {
   if (query.length >= 2) {
     handleLiveSearch(query);
   } else {
-    // si on efface la recherche, on vide les résultats
-    resultsSection.innerHTML = "";
-    resultsSection.setAttribute("aria-busy", "false");
-    errorLiveRegion.textContent = "";
-
-    // on annule aussi une éventuelle requête en cours
+    // si on efface la recherche, on vide tout
     if (currentController) {
       currentController.abort();
       currentController = null;
     }
+    currentResults = [];
+    currentPage = 1;
+    resultsSection.innerHTML = "";
+    resultsSection.setAttribute("aria-busy", "false");
+    errorLiveRegion.textContent = "";
+    clearPagination();
   }
-})
+});

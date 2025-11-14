@@ -102,3 +102,42 @@ button {
   border: 0 !important;
   white-space: nowrap !important;
 }
+
+/*Pagination*/
+.pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.pagination__list {
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pagination__btn {
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #4b5563;
+  background: #020617;
+  color: #f9fafb;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.pagination__btn:hover:not(.is-disabled):not(.is-current) {
+  transform: translateY(-1px);
+}
+
+.pagination__btn.is-current {
+  font-weight: 600;
+  border-color: #f97316;
+}
+
+.pagination__btn.is-disabled {
+  opacity: 0.4;
+  cursor: default;
+}
