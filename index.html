@@ -20,10 +20,24 @@
         <button type="submit" class="apptv__btn-submit">Rechercher</button>
       </form>
 
-      <section id="results" class="apptv__results-grid">
+      <section
+        id="results"
+        class="apptv__results-grid"
+        role="region"
+        aria-label="Résultats de recherche de séries TV"
+        aria-live="polite"
+        aria-busy="false"
+      >
         <!-- Les résultats seront injectés ici en JS -->
       </section>
     </main>
+    <!-- Erreurs à afficher pour l'accessibilité -->
+    <div
+      id="error-live-region"
+      role="alert"
+      aria-live="assertive"
+      class="visually-hidden"
+    ></div>
 
     <script src="app.js" defer></script>
   </body>

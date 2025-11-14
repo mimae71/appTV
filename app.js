@@ -4,6 +4,8 @@ const form = document.getElementById("search-form");
 const input = document.getElementById("search-input");
 const resultsSection = document.getElementById("results");
 
+// --- Région d'erreur pour les lecteurs d'écran (créée en JS) ---
+const errorLiveRegion = document.getElementById("error-live-region");
 // --- AbortController courant (pour la dernière requête) ---
 let currentController = null;
 
@@ -22,14 +24,35 @@ function buildSearchUrl(query) {
   return `https://api.tvmaze.com/search/shows?q=${encoded}`;
 }
 
+// --- Gestion de l'état de chargement (visuel + aria) ---
+function setLoading(isLoading) {
+  resultsSection.setAttribute("aria-busy", String(isLoading));
+
+  if (isLoading) {
+    resultsSection.innerHTML = "<p>Chargement…</p>";
+  }
+}
+
+// --- Affichage d'un message d'erreur + annonce pour lecteur d'écran ---
+function showError(message) {
+  resultsSection.innerHTML = `<p>${message}</p>`;
+  errorLiveRegion.textContent = message;
+}
+
 // --- Fonction pour afficher les résultats dans la grille ---
 function renderResults(series) {
+  // on efface l'erreur précédente le cas échéant
+  errorLiveRegion.textContent = "";
   resultsSection.innerHTML = "";
 
   if (!series.length) {
-    resultsSection.textContent = "Aucun résultat trouvé.";
+    const message = "Aucun résultat trouvé.";
+    resultsSection.textContent = message;
     return;
   }
+
+  // Affichage du nombre de résultats (annoncé automatiquement)
+  resultsSection.innerHTML = `<p class="results-info">${series.length} résultat(s).</p>`;
 
   const fragment = document.createDocumentFragment();
 
@@ -59,6 +82,24 @@ function renderResults(series) {
 
   resultsSection.appendChild(fragment);
 }
+//   // petite info pour les lecteurs d'écran : nombre de résultats
+//   const info = document.createElement("p");
+//   info.textContent = `${series.length} série(s) trouvée(s).`;
+//   Object.assign(info.style, {
+//     position: "absolute",
+//     width: "1px",
+//     height: "1px",
+//     padding: "0",
+//     margin: "-1px",
+//     border: "0",
+//     overflow: "hidden",
+//     clip: "rect(0 0 0 0)",
+//     clipPath: "inset(50%)",
+//     whiteSpace: "nowrap",
+//   });
+
+//   resultsSection.prepend(info);
+// }
 
 // --- Fonction pour effectuer la recherche avec AbortController ---
 async function searchSeries(query) {
@@ -72,7 +113,7 @@ async function searchSeries(query) {
   const { signal } = currentController;
 
   const url = buildSearchUrl(query);
-  resultsSection.innerHTML = "<p>Chargement...</p>";
+  setLoading(true);
 
   try {
     const response = await fetch(url, { signal });
@@ -84,17 +125,16 @@ async function searchSeries(query) {
     const data = await response.json();
     renderResults(data);
   } catch (error) {
-    // 3. Si la requête a été annulée, on ne fait rien de plus
+    // si la requête a été annulée, on ne fait rien
     if (error.name === "AbortError") {
       console.log("Requête annulée (nouvelle recherche déclenchée)");
       return;
     }
 
     console.error(error);
-    resultsSection.innerHTML =
-      "<p>Une erreur est survenue. Veuillez réessayer plus tard.</p>";
+    showError("Une erreur est survenue. Veuillez réessayer plus tard.");
   } finally {
-    // 4. On libère le controller (optionnel, mais propre)
+    setLoading(false);
     currentController = null;
   }
 }
@@ -124,10 +164,13 @@ input.addEventListener("input", () => {
   } else {
     // si on efface la recherche, on vide les résultats
     resultsSection.innerHTML = "";
-    // on peut aussi annuler la requête en cours
+    resultsSection.setAttribute("aria-busy", "false");
+    errorLiveRegion.textContent = "";
+
+    // on annule aussi une éventuelle requête en cours
     if (currentController) {
       currentController.abort();
       currentController = null;
     }
   }
-});
+})

@@ -25,6 +25,14 @@ ajouter modal
 Ajout de favoris en localStorage
 Charger plus d'image avec lazy loading
 Ajout d'un thème clair/sombre
+afficher aussi le lien vers la fiche TVMaze de la série
+ajouter un hover sur les cartes avec un petit effet de scale / ombre
+respectet la notation bem pour les classes
+améliorer le rendu du nombres de résultats et la largeur des cartes si peu de résultats
+rendre l'ensemble responsive
+## Corrections faites
+- abort controller
+- debounce
 Accessibilité : 
--Aria live (chargement....)
+-Aria live (chargement....) + nombres de résultats trouvés
 
